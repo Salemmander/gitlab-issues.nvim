@@ -133,11 +133,11 @@ end
 function M.add_comment(item, content, callback)
 	run({ "issue", "note", tostring(item.iid), "-R", item.repo, "-m", content }, function(out)
 		if out.code ~= 0 then
-			callback(out.stderr or "comment failed")
+			callback(nil, out.stderr or "comment failed")
 			return
 		end
 
-		callback()
+		callback(true)
 	end)
 end
 

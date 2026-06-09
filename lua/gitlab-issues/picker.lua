@@ -1,110 +1,12 @@
 local backend = require("gitlab-issues.backend.glab")
+local comment = require("gitlab-issues.comment")
 local config = require("gitlab-issues.config")
 local create = require("gitlab-issues.create")
 local git = require("gitlab-issues.git")
 local issue = require("gitlab-issues.issue")
+local layout = require("gitlab-issues.layout")
 
 local M = {}
-
-local KEYS = {
-	{ key = "<C-o>", action = "view_issue", desc = "open" },
-	{ key = "<C-e>", action = "assign_self", desc = "assign" },
-	{ key = "<C-f>", action = "toggle_assignee", desc = "mine" },
-	{ key = "<C-g>", action = "toggle_scope", desc = "scope" },
-	{ key = "<C-s>", action = "toggle_state", desc = "state" },
-	{ key = "<C-r>", action = "pick_repo", desc = "repo" },
-	{ key = "<C-t>", action = "create_issue", desc = "new" },
-	{ key = "<C-x>", action = "close_reopen", desc = "close/open" },
-	{ key = "<C-b>", action = "add_comment", desc = "comment" },
-}
-
-local FOOTER = table.concat(
-	vim.tbl_map(function(k)
-		local letter = k.key:match("<C%-(.-)>")
-		return "^" .. letter .. " " .. k.desc
-	end, KEYS),
-	"  "
-)
-
-local LAYOUT = {
-	layout = {
-		box = "vertical",
-		width = 0.8,
-		height = 0.7,
-		border = true,
-		title = "{title} {live} {flags}",
-		title_pos = "center",
-		footer = FOOTER,
-		footer_pos = "center",
-		{ win = "input", height = 1, border = "bottom" },
-		{ win = "list", border = "none" },
-		{ win = "preview", title = "{preview}", height = 0.7, border = "top" },
-	},
-}
-
-local function input_keys()
-	local keys = {}
-	for _, entry in ipairs(KEYS) do
-		keys[entry.key] = { entry.action, mode = { "i", "n" } }
-	end
-	return keys
-end
-
-local function open_comment_window(item)
-	local buf = vim.api.nvim_create_buf(false, true)
-	vim.bo[buf].filetype = "markdown"
-	vim.bo[buf].bufhidden = "wipe"
-
-	local width = math.floor(vim.o.columns * 0.6)
-	local height = 15
-	local row = math.floor((vim.o.lines - height) / 2)
-	local col = math.floor((vim.o.columns - width) / 2)
-
-	local win = vim.api.nvim_open_win(buf, true, {
-		relative = "editor",
-		width = width,
-		height = height,
-		row = row,
-		col = col,
-		style = "minimal",
-		border = "rounded",
-		title = " Comment on #" .. item.iid .. ": " .. item.title .. " ",
-		title_pos = "center",
-		footer = " <C-s> submit  ·  <Esc> cancel ",
-		footer_pos = "center",
-		zindex = 250,
-	})
-
-	local function close()
-		if vim.api.nvim_win_is_valid(win) then
-			vim.api.nvim_win_close(win, true)
-		end
-	end
-
-	local function submit()
-		local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-		local content = vim.trim(table.concat(lines, "\n"))
-		if content == "" then
-			vim.notify("gitlab-issues: comment is empty", vim.log.levels.WARN)
-			return
-		end
-
-		close()
-		vim.notify("Posting comment on #" .. item.iid .. "...", vim.log.levels.INFO)
-		backend.add_comment(item, content, function(err)
-			if err then
-				vim.notify("gitlab-issues: " .. err, vim.log.levels.ERROR)
-				return
-			end
-
-			vim.notify("Comment posted on #" .. item.iid .. ": " .. item.title, vim.log.levels.INFO)
-		end)
-	end
-
-	vim.keymap.set({ "n", "i" }, "<C-s>", submit, { buffer = buf })
-	vim.keymap.set({ "n", "i" }, "<Esc>", close, { buffer = buf })
-	vim.cmd("startinsert")
-end
 
 function M.issues(opts)
 	opts = opts or {}
@@ -164,14 +66,9 @@ function M.issues(opts)
 
 		Snacks.picker({
 			title = title_for(),
-			layout = LAYOUT,
+			layout = layout.picker,
 			items = compute_items(),
-			format = function(item)
-				if item.state == "closed" then
-					return { { "✓ ", "DiagnosticInfo" }, { item.text, "Comment" } }
-				end
-				return { { "○ ", "DiagnosticOk" }, { item.text } }
-			end,
+			format = layout.format,
 			preview = issue.preview,
 			actions = {
 				view_issue = function(_, item)
@@ -234,7 +131,7 @@ function M.issues(opts)
 					end)
 				end,
 				add_comment = function(_, item)
-					open_comment_window(item)
+					comment.open(item)
 				end,
 				close_reopen = function(picker, item)
 					local is_open = item.state == "opened"
@@ -278,7 +175,7 @@ function M.issues(opts)
 			},
 			win = {
 				input = {
-					keys = input_keys(),
+					keys = layout.input_keys(),
 				},
 			},
 		})
