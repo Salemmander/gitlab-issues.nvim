@@ -143,7 +143,7 @@ function M.issues(opts)
 				end,
 				close_reopen = function(picker, item)
 					local is_open = item.state == "opened"
-					local action_word = is_open and "Close" or "Reopen"
+					local action_word = is_open and "Clos" or "Reopen"
 					local done_label = is_open and "Closed" or "Reopened"
 
 					vim.ui.select({ "No", "Yes" }, {
