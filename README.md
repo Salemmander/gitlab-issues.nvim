@@ -30,6 +30,12 @@ glab auth login
 glab auth status
 ```
 
+You can verify your setup from Neovim:
+
+```vim
+:checkhealth gitlab-issues
+```
+
 ## Installation
 
 With [`lazy.nvim`](https://github.com/folke/lazy.nvim):
