@@ -14,9 +14,14 @@ function M.issues(opts)
 	local cfg = config.get()
 	local active_group = opts.group ~= nil and opts.group or cfg.group
 	local detected_repo = git.detect_repo()
+	if opts.current_repo and not detected_repo then
+		vim.notify("gitlab-issues: current repo scope filter unavailable", vim.log.levels.WARN)
+		return
+	end
+
 	local all_items = {}
 	local assigned_only = false
-	local repo_filter = nil
+	local repo_filter = opts.current_repo and detected_repo or opts.repo
 	local state_filter = opts.state
 	local username = nil
 	local pending = 2
