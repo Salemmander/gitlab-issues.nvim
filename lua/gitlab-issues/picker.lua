@@ -168,7 +168,11 @@ function M.issues(opts)
 							return
 						end
 
-						repo_filter = choice == "All repos" and nil or choice
+						if choice == "All repos" then
+							repo_filter = nil
+						else
+							repo_filter = choice
+						end
 						apply_filter(picker)
 					end)
 				end,
