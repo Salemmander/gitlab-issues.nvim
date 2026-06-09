@@ -12,7 +12,8 @@ function M.issues(opts)
 	opts = opts or {}
 
 	local cfg = config.get()
-	local detected_repo = git.detect_repo()
+	local active_group = opts.group ~= nil and opts.group or cfg.group
+	local detected_repo = git.detect_repo(active_group)
 	local all_items = {}
 	local assigned_only = false
 	local repo_filter = nil
@@ -21,7 +22,8 @@ function M.issues(opts)
 	local pending = 2
 
 	local function title_for()
-		local scope = repo_filter and (repo_filter:match("[^/]+$") or repo_filter) or cfg.group
+		local base_scope = active_group or "all visible"
+		local scope = repo_filter and (repo_filter:match("[^/]+$") or repo_filter) or base_scope
 		local assignee = assigned_only and " (mine)" or ""
 		local state = state_filter and " [" .. state_filter .. "]" or ""
 		return "GitLab Issues [" .. scope .. "]" .. assignee .. state
@@ -48,7 +50,7 @@ function M.issues(opts)
 	end
 
 	local function refetch_items(picker)
-		backend.list_issues(function(raw_issues, err)
+		backend.list_issues(active_group, function(raw_issues, err)
 			if err then
 				vim.notify("gitlab-issues: " .. err, vim.log.levels.ERROR)
 				return
@@ -88,10 +90,7 @@ function M.issues(opts)
 				end,
 				toggle_scope = function(picker)
 					if not detected_repo then
-						vim.notify(
-							"gitlab-issues: not in a " .. cfg.group .. " repo; scope filter unavailable",
-							vim.log.levels.WARN
-						)
+						vim.notify("gitlab-issues: current repo scope filter unavailable", vim.log.levels.WARN)
 						return
 					end
 
@@ -176,6 +175,38 @@ function M.issues(opts)
 						apply_filter(picker)
 					end)
 				end,
+				pick_group = function(picker)
+					backend.list_groups(function(groups, err)
+						if err then
+							vim.notify("gitlab-issues: " .. err, vim.log.levels.ERROR)
+							return
+						end
+
+						local choices = { "All visible issues" }
+						for _, group in ipairs(groups) do
+							if type(group.full_path) == "string" then
+								table.insert(choices, group.full_path)
+							end
+						end
+
+						vim.ui.select(choices, { prompt = "Default group: " }, function(choice)
+							if not choice then
+								return
+							end
+
+							if choice == "All visible issues" then
+								active_group = nil
+							else
+								active_group = choice
+							end
+
+							config.set_group(active_group)
+							detected_repo = git.detect_repo(active_group)
+							repo_filter = nil
+							refetch_items(picker)
+						end)
+					end)
+				end,
 			},
 			win = {
 				input = {
@@ -184,7 +215,9 @@ function M.issues(opts)
 			},
 		})
 
-		backend.list_repos(function() end)
+		if active_group then
+			backend.list_repos(active_group, function() end)
+		end
 	end
 
 	backend.current_user(function(resolved_username, err)
@@ -198,7 +231,7 @@ function M.issues(opts)
 		open_picker()
 	end)
 
-	backend.list_issues(function(raw_issues, err)
+	backend.list_issues(active_group, function(raw_issues, err)
 		if err then
 			vim.notify("gitlab-issues: " .. err, vim.log.levels.ERROR)
 			pending = math.huge

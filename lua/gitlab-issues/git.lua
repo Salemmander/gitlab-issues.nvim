@@ -2,9 +2,10 @@ local config = require("gitlab-issues.config")
 
 local M = {}
 
-function M.detect_repo()
+function M.detect_repo(group)
 	local cfg = config.get()
-	if not cfg.group then
+	group = group or cfg.group
+	if not group then
 		return nil
 	end
 
@@ -13,7 +14,7 @@ function M.detect_repo()
 	local escaped_host = vim.pesc(gitlab_host)
 	local repo = origin:match(escaped_host .. "[:/](.+)%.git$")
 
-	if repo and vim.startswith(repo, cfg.group .. "/") then
+	if repo and vim.startswith(repo, group .. "/") then
 		return repo
 	end
 

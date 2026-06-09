@@ -4,6 +4,7 @@ local M = {}
 
 local repo_cache = nil
 local repo_cache_group = nil
+local group_cache = nil
 
 local function run(args, callback)
 	local cfg = config.get()
@@ -22,10 +23,11 @@ local function decode(out)
 	return nil
 end
 
-local function group_required(callback)
+local function group_required(group, callback)
 	local cfg = config.get()
-	if cfg.group then
-		return cfg
+	group = group or cfg.group
+	if group then
+		return group
 	end
 
 	callback(nil, "`group` is required")
@@ -43,13 +45,36 @@ function M.current_user(callback)
 	end)
 end
 
-function M.list_repos(callback)
-	local cfg = group_required(callback)
-	if not cfg then
+function M.list_groups(callback)
+	if group_cache then
+		callback(group_cache)
 		return
 	end
 
-	if repo_cache and repo_cache_group == cfg.group then
+	run({ "api", "groups", "--paginate" }, function(out)
+		local groups = decode(out)
+		if type(groups) ~= "table" then
+			callback(nil, out.stderr or "failed to fetch groups")
+			return
+		end
+
+		group_cache = groups
+		callback(groups)
+	end)
+end
+
+function M.list_repos(group, callback)
+	if type(group) == "function" then
+		callback = group
+		group = nil
+	end
+
+	group = group_required(group, callback)
+	if not group then
+		return
+	end
+
+	if repo_cache and repo_cache_group == group then
 		callback(repo_cache)
 		return
 	end
@@ -57,7 +82,7 @@ function M.list_repos(callback)
 	local accumulated = {}
 
 	local function fetch_page(page)
-		local url = "groups/" .. cfg.group .. "/projects?include_subgroups=true&per_page=100&page=" .. page
+		local url = "groups/" .. group .. "/projects?include_subgroups=true&per_page=100&page=" .. page
 		run({ "api", url }, function(out)
 			local projects = decode(out)
 			if type(projects) ~= "table" then
@@ -75,7 +100,7 @@ function M.list_repos(callback)
 				fetch_page(page + 1)
 			else
 				repo_cache = accumulated
-				repo_cache_group = cfg.group
+				repo_cache_group = group
 				callback(accumulated)
 			end
 		end)
@@ -84,13 +109,15 @@ function M.list_repos(callback)
 	fetch_page(1)
 end
 
-function M.list_issues(callback)
-	local cfg = group_required(callback)
-	if not cfg then
-		return
+function M.list_issues(group, callback)
+	if type(group) == "function" then
+		callback = group
+		group = nil
 	end
 
-	run({ "issue", "list", "-g", cfg.group, "-O", "json", "--all" }, function(out)
+	local args = group and { "issue", "list", "-g", group, "-O", "json", "--all" } or { "api", "issues", "--paginate" }
+
+	run(args, function(out)
 		local issues = decode(out)
 		if type(issues) ~= "table" then
 			callback(nil, out.stderr or out.stdout or "failed to fetch issues")

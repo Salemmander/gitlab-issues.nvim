@@ -17,4 +17,9 @@ function M.get()
 	return M.options
 end
 
+function M.set_group(group)
+	M.options.group = group
+	return M.options
+end
+
 return M

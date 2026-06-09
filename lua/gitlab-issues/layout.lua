@@ -7,6 +7,7 @@ local KEYS = {
 	{ key = "<C-g>", action = "toggle_scope", desc = "scope" },
 	{ key = "<C-s>", action = "toggle_state", desc = "state" },
 	{ key = "<C-r>", action = "pick_repo", desc = "repo" },
+	{ key = "<C-y>", action = "pick_group", desc = "group" },
 	{ key = "<C-t>", action = "create_issue", desc = "new" },
 	{ key = "<C-x>", action = "close_reopen", desc = "close/open" },
 	{ key = "<C-b>", action = "add_comment", desc = "comment" },
