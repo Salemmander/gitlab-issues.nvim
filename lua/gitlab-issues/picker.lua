@@ -13,7 +13,7 @@ function M.issues(opts)
 
 	local cfg = config.get()
 	local active_group = opts.group ~= nil and opts.group or cfg.group
-	local detected_repo = git.detect_repo(active_group)
+	local detected_repo = git.detect_repo()
 	local all_items = {}
 	local assigned_only = false
 	local repo_filter = nil
@@ -94,7 +94,11 @@ function M.issues(opts)
 						return
 					end
 
-					repo_filter = repo_filter == detected_repo and nil or detected_repo
+					if repo_filter == detected_repo then
+						repo_filter = nil
+					else
+						repo_filter = detected_repo
+					end
 					apply_filter(picker)
 				end,
 				toggle_state = function(picker)
@@ -201,7 +205,7 @@ function M.issues(opts)
 							end
 
 							config.set_group(active_group)
-							detected_repo = git.detect_repo(active_group)
+							detected_repo = git.detect_repo()
 							repo_filter = nil
 							refetch_items(picker)
 						end)
