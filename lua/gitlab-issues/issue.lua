@@ -1,18 +1,68 @@
 local M = {}
 
+local ns = vim.api.nvim_create_namespace("gitlab-issues-preview")
+
+local function state_highlight(state)
+	if state == "opened" then
+		return "DiagnosticOk"
+	end
+	if state == "closed" then
+		return "DiagnosticError"
+	end
+	return "Title"
+end
+
+local function state_label(state)
+	if state == "opened" then
+		return "Open"
+	end
+	if state == "closed" then
+		return "Closed"
+	end
+	return state or "Unknown"
+end
+
+local function format_assignees(item)
+	if item.assignee_usernames and #item.assignee_usernames > 0 then
+		return table.concat(
+			vim.tbl_map(function(username)
+				return "@" .. username
+			end, item.assignee_usernames),
+			", "
+		)
+	end
+
+	return item.assignees ~= "" and item.assignees or "none"
+end
+
+local function format_labels(labels)
+	if labels == "" then
+		return "none"
+	end
+
+	local formatted = vim.tbl_map(function(label)
+		return "`" .. vim.trim(label) .. "`"
+	end, vim.split(labels, ",", { plain = true, trimempty = true }))
+
+	return table.concat(formatted, " ")
+end
+
 function M.preview(ctx)
 	local i = ctx.item
+	local state = state_label(i.state)
 	local lines = {
-		"# " .. i.title,
+		"# Issue #" .. tostring(i.iid or "") .. ": " .. i.title,
 		"",
-		"- **State:** " .. (i.state or ""),
-		"- **Author:** " .. (i.author or ""),
-		"- **Assignees:** " .. (i.assignees ~= "" and i.assignees or "none"),
-		"- **Labels:** " .. (i.labels ~= "" and i.labels or "none"),
-		"- **Created:** " .. (i.created or ""),
-		"- **URL:** " .. (i.url or ""),
+		"**Status:** " .. state,
+		"**Author:** " .. (i.author or ""),
+		"**Assignee:** " .. format_assignees(i),
+		"**Labels:** " .. format_labels(i.labels),
+		"**Project:** " .. (i.repo ~= "" and i.repo or "unknown"),
+		"**Created:** " .. (i.created or ""),
 		"",
 		"---",
+		"",
+		"## Description",
 		"",
 	}
 
@@ -23,6 +73,11 @@ function M.preview(ctx)
 	ctx.preview:reset()
 	ctx.preview:set_lines(lines)
 	require("snacks.picker.util.markdown").render(ctx.preview.win.buf, { images = false })
+	vim.api.nvim_buf_set_extmark(ctx.preview.win.buf, ns, 2, #"**Status:** ", {
+		end_col = #"**Status:** " + #state,
+		hl_group = state_highlight(i.state),
+		priority = 200,
+	})
 end
 
 function M.filter(items, opts)
