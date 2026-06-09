@@ -45,10 +45,24 @@ function M.input_keys()
 end
 
 function M.format(item)
+	local ret
 	if item.state == "closed" then
-		return { { "✓ ", "DiagnosticInfo" }, { item.text, "Comment" } }
+		ret = { { "✓ ", "DiagnosticInfo" }, { item.text, "Comment" } }
+	else
+		ret = { { "○ ", "DiagnosticOk" }, { item.text } }
 	end
-	return { { "○ ", "DiagnosticOk" }, { item.text } }
+
+	if item.repo and item.repo ~= "" then
+		local repo_name = item.repo:match("[^/]+$") or item.repo
+		ret[#ret + 1] = {
+			col = 0,
+			virt_text = { { "[" .. repo_name .. "]  " } },
+			virt_text_pos = "right_align",
+			hl_mode = "combine",
+		}
+	end
+
+	return ret
 end
 
 return M
