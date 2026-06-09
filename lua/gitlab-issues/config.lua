@@ -4,6 +4,12 @@ M.defaults = {
 	group = nil,
 	gitlab_url = "https://gitlab.com",
 	glab_cmd = "glab",
+	keymaps = {
+		issues = "<leader>GI",
+		open_issues = "<leader>Go",
+		current_repo_open_issues = "<leader>GO",
+		create_issue = "<leader>GC",
+	},
 }
 
 M.options = vim.deepcopy(M.defaults)
