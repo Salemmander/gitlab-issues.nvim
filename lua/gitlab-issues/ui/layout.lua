@@ -53,10 +53,12 @@ end
 function M.format(item)
 	local ret
 	if item.state == "closed" then
-		ret = { { "✓ ", "DiagnosticInfo" }, { item.text, "Comment" } }
+		ret = { { "✓ ", "DiagnosticInfo" }, { "#" .. tostring(item.iid), "Comment" }, { " " } }
 	else
-		ret = { { "○ ", "DiagnosticOk" }, { item.text } }
+		ret = { { "○ ", "DiagnosticOk" }, { "#" .. tostring(item.iid), "SnacksPickerDimmed" }, { " " } }
 	end
+
+	vim.list_extend(ret, Snacks.picker.format.commit_message({ msg = item.title or "" }, {}))
 
 	if item.repo and item.repo ~= "" then
 		local repo_name = item.repo:match("[^/]+$") or item.repo
