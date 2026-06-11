@@ -180,7 +180,11 @@ function M.build(ctx)
 				return
 			end
 
-			state.repo_filter = choice == "All repos" and nil or choice
+			if choice == "All repos" then
+				state.repo_filter = nil
+			else
+				state.repo_filter = choice
+			end
 			ctx.apply_filter(picker)
 		end)
 	end
@@ -204,7 +208,11 @@ function M.build(ctx)
 					return
 				end
 
-				state.active_group = choice == "All visible issues" and nil or choice
+				if choice == "All visible issues" then
+					state.active_group = nil
+				else
+					state.active_group = choice
+				end
 				config.set_group(state.active_group)
 				state.detected_repo = git.detect_repo()
 				state.repo_filter = nil
