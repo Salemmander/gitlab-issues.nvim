@@ -75,8 +75,9 @@ function M.issues(opts)
 		local menu_items = {}
 
 		local function add_menu_item(name, desc, icon)
+			local number = #menu_items + 1
 			menu_items[#menu_items + 1] = {
-				text = desc,
+				text = tostring(number) .. ". " .. desc,
 				desc = desc,
 				icon = icon,
 				name = name,
@@ -103,7 +104,15 @@ function M.issues(opts)
 
 			Snacks.picker({
 				title = "GitLab Actions",
-				layout = layout.actions_picker.layout,
+				layout = vim.tbl_deep_extend("force", layout.actions_picker.layout, {
+					config = function(action_layout)
+						for _, box in ipairs(action_layout.layout) do
+							if box.win == "list" and not box.height then
+								box.height = math.max(math.min(#menu_items, vim.o.lines * 0.8 - 10), 3)
+							end
+						end
+					end,
+				}),
 				items = menu_items,
 				format = layout.format_action,
 				confirm = function(action_picker, action_item)

@@ -36,7 +36,10 @@ M.picker = {
 }
 
 M.actions_picker = {
-	layout = { preset = "select", layout = { max_width = 54 } },
+	layout = {
+		preset = "select",
+		layout = { max_width = 54 },
+	},
 }
 
 function M.input_keys()
