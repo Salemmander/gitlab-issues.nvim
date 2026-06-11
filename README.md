@@ -79,16 +79,13 @@ Inside the picker:
 
 | Key | Action |
 | --- | --- |
-| `<C-o>` | Open issue in browser |
-| `<C-e>` | Assign or unassign yourself |
+| `<Enter>` | Show issue action menu |
 | `<C-f>` | Toggle assigned-to-me filter |
 | `<C-g>` | Toggle current repo scope |
 | `<C-s>` | Cycle issue state filter |
 | `<C-r>` | Filter by repo |
 | `<C-y>` | Pick active group |
 | `<C-t>` | Create issue |
-| `<C-x>` | Close or reopen issue |
-| `<C-b>` | Add comment |
 
 ## Configuration
 
