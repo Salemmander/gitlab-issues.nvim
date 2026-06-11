@@ -2,6 +2,7 @@ local backend = require("gitlab-issues.backend.glab")
 local comment = require("gitlab-issues.ui.comment")
 local config = require("gitlab-issues.config")
 local create = require("gitlab-issues.ui.create")
+local edit = require("gitlab-issues.ui.edit")
 local git = require("gitlab-issues.core.git")
 local issue = require("gitlab-issues.core.issue")
 local layout = require("gitlab-issues.ui.layout")
@@ -51,6 +52,7 @@ function M.build(ctx)
 		end
 
 		add_menu_item(menu_items, "add_comment", "Comment on issue #" .. item.iid, " ")
+		add_menu_item(menu_items, "edit_issue", "Edit issue #" .. item.iid, " ")
 		add_menu_item(menu_items, "view_issue", "Open issue #" .. item.iid .. " in browser", " ")
 
 		local close_label = item.state == "opened" and "Close issue" or "Reopen issue"
@@ -135,6 +137,10 @@ function M.build(ctx)
 
 	actions.add_comment = function(picker, item)
 		comment.open(item, { picker = picker })
+	end
+
+	actions.edit_issue = function(picker, item)
+		edit.open(item, { picker = picker, refresh_item = ctx.refresh_item })
 	end
 
 	actions.close_reopen = function(picker, item)

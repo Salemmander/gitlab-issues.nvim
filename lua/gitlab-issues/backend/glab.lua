@@ -201,4 +201,25 @@ function M.create_issue(repo, title, description, callback)
 	end)
 end
 
+function M.update_issue(item, title, description, callback)
+	run({
+		"issue",
+		"update",
+		tostring(item.iid),
+		"-R",
+		item.repo,
+		"--title",
+		title,
+		"--description",
+		description or "",
+	}, function(out)
+		if out.code ~= 0 then
+			callback(nil, out.stderr or "update failed")
+			return
+		end
+
+		M.fetch_issue(item, callback)
+	end)
+end
+
 return M
