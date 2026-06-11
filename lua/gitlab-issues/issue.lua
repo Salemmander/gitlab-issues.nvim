@@ -10,6 +10,32 @@ local function setup_preview_deps()
 	require("snacks.gh")
 end
 
+local function parse_time(value)
+	if type(value) ~= "string" or value == "" then
+		return nil
+	end
+
+	local year, month, day, hour, min, sec = value:match("^(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)")
+	if not year then
+		return nil
+	end
+
+	local timestamp = os.time({
+		year = tonumber(year),
+		month = tonumber(month),
+		day = tonumber(day),
+		hour = tonumber(hour),
+		min = tonumber(min),
+		sec = tonumber(sec),
+		isdst = false,
+	})
+
+	local now = os.time()
+	local utc_date = os.date("!*t", now)
+	utc_date.isdst = false
+	return timestamp + os.difftime(now, os.time(utc_date))
+end
+
 local function state_highlight(state)
 	if state == "opened" then
 		return "DiagnosticOk"
@@ -76,6 +102,15 @@ end
 
 local function plain_prop(name, value, hl)
 	return prop_line(name, { { value, hl } })
+end
+
+local function time_prop(name, value)
+	local timestamp = parse_time(value)
+	if not timestamp then
+		return nil
+	end
+
+	return plain_prop(name, Snacks.picker.util.reltime(timestamp), "SnacksPickerGitDate")
 end
 
 local function status_prop(item)
@@ -152,11 +187,21 @@ local function render_preview(buf, item)
 		plain_prop("Author", item.author or "", "Identifier"),
 		assignees_prop(item),
 		labels_prop(item),
-		plain_prop("Created", item.created or "", "SnacksPickerGitDate"),
-		{},
-		{ { "---", "@punctuation.special.markdown" } },
-		{},
 	}
+
+	for _, line in ipairs({
+		time_prop("Created", item.created_at),
+		time_prop("Updated", item.updated_at),
+		time_prop("Closed", item.closed_at),
+	}) do
+		if line then
+			lines[#lines + 1] = line
+		end
+	end
+
+	lines[#lines + 1] = {}
+	lines[#lines + 1] = { { "---", "@punctuation.special.markdown" } }
+	lines[#lines + 1] = {}
 
 	vim.list_extend(lines, body_lines(item.description))
 
@@ -238,7 +283,9 @@ function M.make_item(raw_issue)
 		assignees = get_assignees(raw_issue),
 		assignee_usernames = get_assignee_usernames(raw_issue),
 		labels = get_labels(raw_issue),
-		created = (raw_issue.created_at or ""):sub(1, 10),
+		created_at = raw_issue.created_at,
+		updated_at = raw_issue.updated_at,
+		closed_at = raw_issue.closed_at,
 		description = raw_issue.description or "",
 		url = raw_issue.web_url or "",
 	}
