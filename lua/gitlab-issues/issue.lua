@@ -1,6 +1,14 @@
 local M = {}
 
 local ns = vim.api.nvim_create_namespace("gitlab-issues-preview")
+local highlight = nil
+local markdown = nil
+
+local function setup_preview_deps()
+	highlight = highlight or Snacks.picker.highlight
+	markdown = markdown or require("snacks.picker.util.markdown")
+	require("snacks.gh")
+end
 
 local function state_highlight(state)
 	if state == "opened" then
@@ -22,6 +30,16 @@ local function state_label(state)
 	return state or "Unknown"
 end
 
+local function state_icon(state)
+	if state == "opened" then
+		return " "
+	end
+	if state == "closed" then
+		return " "
+	end
+	return " "
+end
+
 local function format_assignees(item)
 	if item.assignee_usernames and #item.assignee_usernames > 0 then
 		return table.concat(
@@ -35,49 +53,138 @@ local function format_assignees(item)
 	return item.assignees ~= "" and item.assignees or "none"
 end
 
-local function format_labels(labels)
-	if labels == "" then
-		return "none"
+local function labels_from_item(item)
+	if item.labels == "" then
+		return {}
 	end
 
-	local formatted = vim.tbl_map(function(label)
-		return "`" .. vim.trim(label) .. "`"
-	end, vim.split(labels, ",", { plain = true, trimempty = true }))
+	return vim.tbl_map(function(label)
+		return vim.trim(label)
+	end, vim.split(item.labels, ",", { plain = true, trimempty = true }))
+end
 
-	return table.concat(formatted, " ")
+local function prop_line(name, value)
+	local line = {
+		{ name, "SnacksGhLabel" },
+		{ ":", "SnacksGhDelim" },
+		{ " " },
+	}
+
+	highlight.extend(line, value)
+	return line
+end
+
+local function plain_prop(name, value, hl)
+	return prop_line(name, { { value, hl } })
+end
+
+local function status_prop(item)
+	local state = state_label(item.state)
+	local hl = state_highlight(item.state)
+	local badge = highlight.badge(state_icon(item.state) .. state, hl)
+	return prop_line("Status", badge)
+end
+
+local function assignees_prop(item)
+	local assignees = item.assignee_usernames or {}
+	if #assignees == 0 then
+		return plain_prop("Assignees", format_assignees(item), "Comment")
+	end
+
+	local values = {}
+	for _, username in ipairs(assignees) do
+		highlight.extend(values, highlight.badge(" " .. username, "Identifier"))
+	end
+
+	return prop_line("Assignees", values)
+end
+
+local function labels_prop(item)
+	local labels = labels_from_item(item)
+	if #labels == 0 then
+		return plain_prop("Labels", "none", "Comment")
+	end
+
+	local values = {}
+	for _, label in ipairs(labels) do
+		highlight.extend(values, highlight.badge(label, "Title"))
+	end
+
+	return prop_line("Labels", values)
+end
+
+local function body_lines(description)
+	local lines = {}
+	local text = (description or ""):gsub("<%!%-%-.-%-%->%s*", "")
+	local body = vim.split(text, "\n", { plain = true })
+
+	while #body > 0 and body[1]:match("^%s*$") do
+		table.remove(body, 1)
+	end
+
+	if #body == 0 then
+		body = { "_No description._" }
+	end
+
+	for _, line in ipairs(body) do
+		lines[#lines + 1] = { { line } }
+	end
+
+	return lines
+end
+
+local function format_title(item)
+	local ret = Snacks.picker.format.commit_message({ msg = item.title or "" }, {})
+	ret[#ret + 1] = { " " }
+	ret[#ret + 1] = { "#" .. tostring(item.iid or ""), "SnacksPickerDimmed" }
+
+	return ret
+end
+
+local function render_preview(buf, item)
+	setup_preview_deps()
+
+	local lines = {
+		format_title(item),
+		{},
+		status_prop(item),
+		plain_prop("Repo", item.repo ~= "" and item.repo or "unknown", "@markup.link"),
+		plain_prop("Author", item.author or "", "Identifier"),
+		assignees_prop(item),
+		labels_prop(item),
+		plain_prop("Created", item.created or "", "SnacksPickerGitDate"),
+		{},
+		{ { "---", "@punctuation.special.markdown" } },
+		{},
+	}
+
+	vim.list_extend(lines, body_lines(item.description))
+
+	local changed = highlight.render(buf, ns, lines)
+	if changed then
+		markdown.render(buf, { bullets = false, images = false })
+	end
+end
+
+local function configure_preview(buf, win)
+	vim.bo[buf].filetype = "markdown.gitlab"
+	vim.bo[buf].buftype = "nofile"
+	if win and vim.api.nvim_win_is_valid(win) then
+		vim.wo[win].wrap = true
+		vim.wo[win].linebreak = true
+		vim.wo[win].breakindent = true
+		vim.wo[win].number = false
+		vim.wo[win].relativenumber = false
+		vim.wo[win].conceallevel = 2
+		vim.wo[win].concealcursor = "n"
+	end
 end
 
 function M.preview(ctx)
 	local i = ctx.item
-	local state = state_label(i.state)
-	local lines = {
-		"# Issue #" .. tostring(i.iid or "") .. ": " .. i.title,
-		"",
-		"**Status:** " .. state,
-		"**Author:** " .. (i.author or ""),
-		"**Assignee:** " .. format_assignees(i),
-		"**Labels:** " .. format_labels(i.labels),
-		"**Project:** " .. (i.repo ~= "" and i.repo or "unknown"),
-		"**Created:** " .. (i.created or ""),
-		"",
-		"---",
-		"",
-		"## Description",
-		"",
-	}
-
-	for _, line in ipairs(vim.split(i.description or "", "\n")) do
-		table.insert(lines, line)
-	end
-
 	ctx.preview:reset()
-	ctx.preview:set_lines(lines)
-	require("snacks.picker.util.markdown").render(ctx.preview.win.buf, { images = false })
-	vim.api.nvim_buf_set_extmark(ctx.preview.win.buf, ns, 2, #"**Status:** ", {
-		end_col = #"**Status:** " + #state,
-		hl_group = state_highlight(i.state),
-		priority = 200,
-	})
+	configure_preview(ctx.preview.win.buf, ctx.preview.win.win)
+	render_preview(ctx.preview.win.buf, i)
 end
 
 function M.filter(items, opts)
