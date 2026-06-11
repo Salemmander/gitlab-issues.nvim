@@ -5,26 +5,25 @@ local M = {}
 function M.open(item)
 	local buf = vim.api.nvim_create_buf(false, true)
 	vim.bo[buf].filetype = "markdown"
-	vim.bo[buf].bufhidden = "wipe"
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+		"# Comment on #" .. item.iid .. ": " .. item.title,
+		"",
+	})
 
 	local width = math.floor(vim.o.columns * 0.6)
-	local height = 15
-	local row = math.floor((vim.o.lines - height) / 2)
-	local col = math.floor((vim.o.columns - width) / 2)
-
+	local height = math.floor(vim.o.lines * 0.35)
 	local win = vim.api.nvim_open_win(buf, true, {
 		relative = "editor",
 		width = width,
 		height = height,
-		row = row,
-		col = col,
+		col = math.floor((vim.o.columns - width) / 2),
+		row = math.floor((vim.o.lines - height) / 2),
 		style = "minimal",
 		border = "rounded",
-		title = " Comment on #" .. item.iid .. ": " .. item.title .. " ",
+		title = " GitLab Comment ",
 		title_pos = "center",
 		footer = " <C-s> submit  ·  <Esc> cancel ",
 		footer_pos = "center",
-		zindex = 250,
 	})
 
 	local function close()
@@ -34,7 +33,7 @@ function M.open(item)
 	end
 
 	local function submit()
-		local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+		local lines = vim.api.nvim_buf_get_lines(buf, 2, -1, false)
 		local content = vim.trim(table.concat(lines, "\n"))
 		if content == "" then
 			vim.notify("gitlab-issues: comment is empty", vim.log.levels.WARN)
@@ -49,13 +48,14 @@ function M.open(item)
 				return
 			end
 
-			vim.notify("Comment posted on #" .. item.iid .. ": " .. item.title, vim.log.levels.INFO)
+			vim.notify("Comment posted on #" .. item.iid, vim.log.levels.INFO)
 		end)
 	end
 
 	vim.keymap.set({ "n", "i" }, "<C-s>", submit, { buffer = buf })
 	vim.keymap.set({ "n", "i" }, "<Esc>", close, { buffer = buf })
-	vim.cmd("startinsert")
+	vim.api.nvim_win_set_cursor(win, { 3, 0 })
+	vim.cmd.startinsert()
 end
 
 return M
