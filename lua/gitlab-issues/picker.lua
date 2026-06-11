@@ -120,9 +120,9 @@ function M.issues(opts)
 						return
 					end
 
-					action_picker:close()
 					picker:focus()
 					actions[action_item.name](picker, item)
+					action_picker:close()
 				end,
 			})
 		end
