@@ -55,6 +55,12 @@ function M.issues(opts)
 		picker.title = title_for()
 		picker:find({ refresh = true })
 		preview.prefetch(items, 25)
+		backend.prefetch_labels(
+			vim.tbl_map(function(item)
+				return item.repo
+			end, items),
+			10
+		)
 	end
 
 	local function refresh_item(picker, item, raw_issue)
@@ -103,6 +109,12 @@ function M.issues(opts)
 		})
 
 		preview.prefetch(compute_items(), 25)
+		backend.prefetch_labels(
+			vim.tbl_map(function(item)
+				return item.repo
+			end, compute_items()),
+			10
+		)
 
 		if state.active_group then
 			backend.list_repos(state.active_group, function() end)

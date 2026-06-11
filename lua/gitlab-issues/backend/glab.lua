@@ -5,6 +5,7 @@ local M = {}
 local repo_cache = nil
 local repo_cache_group = nil
 local group_cache = nil
+local label_cache = {}
 
 local function run(args, callback)
 	local cfg = config.get()
@@ -180,6 +181,74 @@ function M.list_comments(item, callback)
 		end
 
 		callback(comments)
+	end)
+end
+
+function M.list_labels(repo, callback)
+	if label_cache[repo] then
+		callback(label_cache[repo])
+		return
+	end
+
+	local encoded_repo = repo:gsub("/", "%%2F")
+	local api_path = "projects/" .. encoded_repo .. "/labels?per_page=100"
+
+	run({ "api", api_path, "--paginate" }, function(out)
+		local labels = decode(out)
+		if type(labels) ~= "table" then
+			callback(nil, out.stderr or "failed to fetch labels")
+			return
+		end
+
+		label_cache[repo] = labels
+		callback(labels)
+	end)
+end
+
+function M.labels_cached(repo)
+	return label_cache[repo] ~= nil
+end
+
+function M.prefetch_labels(repos, limit)
+	local seen = {}
+	local count = 0
+
+	for _, repo in ipairs(repos or {}) do
+		if repo ~= "" and not seen[repo] then
+			seen[repo] = true
+			count = count + 1
+			if limit and count > limit then
+				break
+			end
+
+			M.list_labels(repo, function() end)
+		end
+	end
+end
+
+function M.update_issue_labels(item, add, remove, callback)
+	local args = {
+		"issue",
+		"update",
+		tostring(item.iid),
+		"-R",
+		item.repo,
+	}
+
+	if #add > 0 then
+		vim.list_extend(args, { "--label", table.concat(add, ",") })
+	end
+	if #remove > 0 then
+		vim.list_extend(args, { "--unlabel", table.concat(remove, ",") })
+	end
+
+	run(args, function(out)
+		if out.code ~= 0 then
+			callback(nil, out.stderr or "update labels failed")
+			return
+		end
+
+		M.fetch_issue(item, callback)
 	end)
 end
 

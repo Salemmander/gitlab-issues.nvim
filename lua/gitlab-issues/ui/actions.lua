@@ -5,6 +5,7 @@ local create = require("gitlab-issues.ui.create")
 local edit = require("gitlab-issues.ui.edit")
 local git = require("gitlab-issues.core.git")
 local issue = require("gitlab-issues.core.issue")
+local labels = require("gitlab-issues.ui.labels")
 local layout = require("gitlab-issues.ui.layout")
 
 local M = {}
@@ -53,6 +54,7 @@ function M.build(ctx)
 
 		add_menu_item(menu_items, "add_comment", "Comment on issue #" .. item.iid, " ")
 		add_menu_item(menu_items, "edit_issue", "Edit issue #" .. item.iid, " ")
+		add_menu_item(menu_items, "edit_labels", "Edit labels on issue #" .. item.iid, " ")
 		add_menu_item(menu_items, "view_issue", "Open issue #" .. item.iid .. " in browser", " ")
 
 		local close_label = item.state == "opened" and "Close issue" or "Reopen issue"
@@ -141,6 +143,10 @@ function M.build(ctx)
 
 	actions.edit_issue = function(picker, item)
 		edit.open(item, { picker = picker, refresh_item = ctx.refresh_item })
+	end
+
+	actions.edit_labels = function(picker, item)
+		labels.open(item, { picker = picker, refresh_item = ctx.refresh_item })
 	end
 
 	actions.close_reopen = function(picker, item)
