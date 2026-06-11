@@ -168,6 +168,21 @@ function M.add_comment(item, content, callback)
 	end)
 end
 
+function M.list_comments(item, callback)
+	local encoded_repo = item.repo:gsub("/", "%%2F")
+	local api_path = "projects/" .. encoded_repo .. "/issues/" .. tostring(item.iid) .. "/notes?per_page=100"
+
+	run({ "api", api_path, "--paginate" }, function(out)
+		local comments = decode(out)
+		if type(comments) ~= "table" then
+			callback(nil, out.stderr or "failed to fetch comments")
+			return
+		end
+
+		callback(comments)
+	end)
+end
+
 function M.close_or_reopen_issue(item, callback)
 	local cmd_verb = item.state == "opened" and "close" or "reopen"
 

@@ -1,3 +1,5 @@
+local backend = require("gitlab-issues.backend.glab")
+
 local M = {}
 
 local ns = vim.api.nvim_create_namespace("gitlab-issues-preview")
@@ -165,6 +167,55 @@ local function body_lines(description)
 	end, body)
 end
 
+local function item_key(item)
+	return (item.repo or "") .. "#" .. tostring(item.iid or "")
+end
+
+function M.refresh(picker)
+	if picker and not picker.closed and picker.preview then
+		picker.preview:show(picker, { force = true })
+	end
+end
+
+local function fetch_comments(item, picker)
+	if item._comments_loading or item._comments then
+		return
+	end
+
+	item._comments_loading = true
+	backend.list_comments(item, function(comments, err)
+		item._comments_loading = false
+		if err then
+			item._comments_error = err
+		else
+			item._comments_error = nil
+			item._comments = vim.tbl_filter(function(comment)
+				return not comment.system and type(comment.body) == "string" and comment.body ~= ""
+			end, comments or {})
+			table.sort(item._comments, function(a, b)
+				return (a.created_at or "") < (b.created_at or "")
+			end)
+		end
+
+		if picker and not picker.closed then
+			local current = picker:current()
+			if current and item_key(current) == item_key(item) then
+				M.refresh(picker)
+			end
+		end
+	end)
+end
+
+function M.prefetch(items, limit)
+	for index, item in ipairs(items or {}) do
+		if limit and index > limit then
+			break
+		end
+
+		fetch_comments(item)
+	end
+end
+
 local function format_title(item)
 	local ret = Snacks.picker.format.commit_message({ msg = item.title or "" }, {})
 	ret[#ret + 1] = { " " }
@@ -200,6 +251,40 @@ local function metadata_lines(item)
 	return lines
 end
 
+local function comment_header(comment)
+	local author = comment.author or {}
+	local login = author.username or author.name or "unknown"
+	local line = {
+		{ " " .. login, "Identifier" },
+	}
+
+	local timestamp = parse_time(comment.created_at)
+	if timestamp then
+		line[#line + 1] = { " " }
+		line[#line + 1] = { Snacks.picker.util.reltime(timestamp), "SnacksPickerGitDate" }
+	end
+
+	return line
+end
+
+local function comments_lines(item)
+	if item._comments_error or item._comments_loading or not item._comments or #item._comments == 0 then
+		return {}
+	end
+
+	local lines = { {} }
+	for idx, comment in ipairs(item._comments) do
+		if idx > 1 then
+			lines[#lines + 1] = {}
+		end
+
+		lines[#lines + 1] = comment_header(comment)
+		vim.list_extend(lines, body_lines(comment.body))
+	end
+
+	return lines
+end
+
 local function configure(buf, win)
 	vim.bo[buf].filetype = "markdown.gitlab"
 	vim.bo[buf].buftype = "nofile"
@@ -216,6 +301,7 @@ end
 
 function M.render(ctx)
 	setup_deps()
+	fetch_comments(ctx.item, ctx.picker)
 
 	local buf = ctx.preview.win.buf
 	ctx.preview:reset()
@@ -223,6 +309,7 @@ function M.render(ctx)
 
 	local lines = metadata_lines(ctx.item)
 	vim.list_extend(lines, body_lines(ctx.item.description))
+	vim.list_extend(lines, comments_lines(ctx.item))
 
 	local changed = highlight.render(buf, ns, lines)
 	if changed then

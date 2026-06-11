@@ -1,4 +1,5 @@
 local backend = require("gitlab-issues.backend.glab")
+local preview = require("gitlab-issues.ui.preview")
 local scratch = require("gitlab-issues.ui.scratch")
 
 local M = {}
@@ -19,9 +20,13 @@ function M.submit(item, win, ctx, close)
 		end
 
 		vim.notify("Comment posted on #" .. item.iid, vim.log.levels.INFO)
+		item._comments = nil
+		item._comments_error = nil
+		item._comments_loading = false
 		close(win)
 		if ctx and ctx.picker and not ctx.picker.closed then
 			ctx.picker:focus()
+			preview.refresh(ctx.picker)
 		end
 	end)
 end

@@ -5,6 +5,7 @@ local create = require("gitlab-issues.ui.create")
 local git = require("gitlab-issues.core.git")
 local issue = require("gitlab-issues.core.issue")
 local layout = require("gitlab-issues.ui.layout")
+local preview = require("gitlab-issues.ui.preview")
 
 local M = {}
 
@@ -49,9 +50,11 @@ function M.issues(opts)
 	end
 
 	local function apply_filter(picker)
-		picker.opts.items = compute_items()
+		local items = compute_items()
+		picker.opts.items = items
 		picker.title = title_for()
 		picker:find({ refresh = true })
+		preview.prefetch(items, 25)
 	end
 
 	local function refresh_item(picker, item, raw_issue)
@@ -98,6 +101,8 @@ function M.issues(opts)
 				},
 			},
 		})
+
+		preview.prefetch(compute_items(), 25)
 
 		if state.active_group then
 			backend.list_repos(state.active_group, function() end)
