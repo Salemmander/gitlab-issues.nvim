@@ -41,6 +41,12 @@ local function get_labels(issue)
 	)
 end
 
+local function get_label_details(issue)
+	return vim.tbl_filter(function(label)
+		return type(label) == "table" and type(label.name) == "string"
+	end, issue.labels or {})
+end
+
 function M.make_item(raw_issue)
 	local repo = raw_issue.references and (raw_issue.references.full or ""):match("(.+)#%d+") or ""
 	return {
@@ -53,6 +59,7 @@ function M.make_item(raw_issue)
 		assignees = get_assignees(raw_issue),
 		assignee_usernames = get_assignee_usernames(raw_issue),
 		labels = get_labels(raw_issue),
+		label_details = get_label_details(raw_issue),
 		created_at = raw_issue.created_at,
 		updated_at = raw_issue.updated_at,
 		closed_at = raw_issue.closed_at,

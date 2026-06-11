@@ -24,6 +24,7 @@ local function label_items(labels)
 		return {
 			text = label.name,
 			name = label.name,
+			added = false,
 			color = label.color,
 			description = label.description,
 			is_project_label = label.is_project_label,
@@ -52,8 +53,15 @@ local function diff_labels(before, after)
 	return add, remove
 end
 
-local function format_label(item)
+local function format_label(item, picker)
 	local ret = {}
+	local added = item.added
+	if picker.list:is_selected(item) then
+		added = not added
+	end
+
+	ret[#ret + 1] = { added and "󰱒 " or "󰄱 ", "SnacksPickerDelim" }
+	ret[#ret + 1] = { " " }
 
 	if item.color and item.color ~= "" then
 		vim.list_extend(ret, Snacks.picker.highlight.badge(item.name, item.color))
@@ -78,12 +86,12 @@ local function format_label(item)
 	return ret
 end
 
-local function selected_set(label_picker)
-	local selected = {}
-	for _, label in ipairs(label_picker:selected()) do
-		selected[label.name] = true
+local function final_labels(item, label_picker)
+	local labels = label_set(item)
+	for _, label in ipairs(label_picker:selected({ fallback = true })) do
+		labels[label.name] = not label.added or nil
 	end
-	return selected
+	return labels
 end
 
 function M.open(item, ctx)
@@ -99,6 +107,9 @@ function M.open(item, ctx)
 
 		local current = label_set(item)
 		local items = label_items(labels)
+		for _, label in ipairs(items) do
+			label.added = current[label.name] or false
+		end
 
 		Snacks.picker({
 			title = "Labels for issue #" .. item.iid,
@@ -108,31 +119,10 @@ function M.open(item, ctx)
 				preset = "select",
 				layout = { max_width = 80, min_width = 50 },
 			},
-			formatters = {
-				selected = {
-					show_always = true,
-					unselected = true,
-				},
-			},
-			win = {
-				input = {
-					keys = {
-						["<tab>"] = { "select_and_next", mode = { "i", "n" } },
-						["<s-tab>"] = { "select_and_prev", mode = { "i", "n" } },
-					},
-				},
-			},
-			on_show = function(label_picker)
-				local selected = {}
-				for _, label in ipairs(items) do
-					if current[label.name] then
-						selected[#selected + 1] = label
-					end
-				end
-				label_picker.list:set_selected(selected)
-			end,
+			main = { current = true },
+			focus = "list",
 			confirm = function(label_picker)
-				local selected = selected_set(label_picker)
+				local selected = final_labels(item, label_picker)
 				local add, remove = diff_labels(current, selected)
 				if #add == 0 and #remove == 0 then
 					label_picker:close()
@@ -142,6 +132,10 @@ function M.open(item, ctx)
 					return
 				end
 
+				label_picker:close()
+				if ctx and ctx.picker and not ctx.picker.closed then
+					ctx.picker:focus()
+				end
 				vim.notify("Updating labels on #" .. item.iid .. "...", vim.log.levels.INFO)
 				backend.update_issue_labels(item, add, remove, function(raw_issue, update_err)
 					if update_err then
@@ -149,7 +143,6 @@ function M.open(item, ctx)
 						return
 					end
 
-					label_picker:close()
 					if ctx and ctx.picker and ctx.refresh_item and not ctx.picker.closed then
 						ctx.refresh_item(ctx.picker, item, raw_issue)
 						ctx.picker:focus()

@@ -82,12 +82,16 @@ local function format_assignees(item)
 end
 
 local function labels_from_item(item)
+	if item.label_details and #item.label_details > 0 then
+		return item.label_details
+	end
+
 	if item.labels == "" then
 		return {}
 	end
 
 	return vim.tbl_map(function(label)
-		return vim.trim(label)
+		return { name = vim.trim(label) }
 	end, vim.split(item.labels, ",", { plain = true, trimempty = true }))
 end
 
@@ -144,7 +148,7 @@ local function labels_prop(item)
 
 	local values = {}
 	for _, label in ipairs(labels) do
-		highlight.extend(values, highlight.badge(label, "Title"))
+		highlight.extend(values, highlight.badge(label.name, label.color or "Title"))
 	end
 
 	return prop_line("Labels", values)

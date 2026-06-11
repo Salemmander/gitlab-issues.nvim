@@ -35,6 +35,10 @@ local function group_required(group, callback)
 	return nil
 end
 
+local function encode_path(path)
+	return path:gsub("/", "%%2F")
+end
+
 function M.current_user(callback)
 	run({ "api", "user", "--output", "json" }, function(out)
 		local user = decode(out)
@@ -116,7 +120,16 @@ function M.list_issues(group, callback)
 		group = nil
 	end
 
-	local args = group and { "issue", "list", "-g", group, "-O", "json", "--all" } or { "api", "issues", "--paginate" }
+	local args
+	if group then
+		args = {
+			"api",
+			"groups/" .. encode_path(group) .. "/issues?with_labels_details=true&per_page=100&state=all",
+			"--paginate",
+		}
+	else
+		args = { "api", "issues?with_labels_details=true&per_page=100&state=all", "--paginate" }
+	end
 
 	run(args, function(out)
 		local issues = decode(out)
@@ -130,7 +143,7 @@ function M.list_issues(group, callback)
 end
 
 function M.fetch_issue(item, callback)
-	local encoded_repo = item.repo:gsub("/", "%%2F")
+	local encoded_repo = encode_path(item.repo)
 	local api_path = "projects/" .. encoded_repo .. "/issues/" .. tostring(item.iid)
 
 	run({ "api", api_path }, function(out)
@@ -170,7 +183,7 @@ function M.add_comment(item, content, callback)
 end
 
 function M.list_comments(item, callback)
-	local encoded_repo = item.repo:gsub("/", "%%2F")
+	local encoded_repo = encode_path(item.repo)
 	local api_path = "projects/" .. encoded_repo .. "/issues/" .. tostring(item.iid) .. "/notes?per_page=100"
 
 	run({ "api", api_path, "--paginate" }, function(out)
@@ -190,7 +203,7 @@ function M.list_labels(repo, callback)
 		return
 	end
 
-	local encoded_repo = repo:gsub("/", "%%2F")
+	local encoded_repo = encode_path(repo)
 	local api_path = "projects/" .. encoded_repo .. "/labels?per_page=100"
 
 	run({ "api", api_path, "--paginate" }, function(out)
@@ -207,23 +220,6 @@ end
 
 function M.labels_cached(repo)
 	return label_cache[repo] ~= nil
-end
-
-function M.prefetch_labels(repos, limit)
-	local seen = {}
-	local count = 0
-
-	for _, repo in ipairs(repos or {}) do
-		if repo ~= "" and not seen[repo] then
-			seen[repo] = true
-			count = count + 1
-			if limit and count > limit then
-				break
-			end
-
-			M.list_labels(repo, function() end)
-		end
-	end
 end
 
 function M.update_issue_labels(item, add, remove, callback)
