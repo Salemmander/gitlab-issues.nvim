@@ -133,8 +133,8 @@ function M.build(ctx)
 		end)
 	end
 
-	actions.add_comment = function(_, item)
-		comment.open(item)
+	actions.add_comment = function(picker, item)
+		comment.open(item, { picker = picker })
 	end
 
 	actions.close_reopen = function(picker, item)
@@ -165,7 +165,7 @@ function M.build(ctx)
 	actions.create_issue = function(picker)
 		create.run(state.detected_repo, function()
 			ctx.refetch_items(picker)
-		end)
+		end, { picker = picker })
 	end
 
 	actions.pick_repo = function(picker)
