@@ -5,16 +5,32 @@ local scratch = require("gitlab-issues.ui.scratch")
 
 local M = {}
 
+local function is_submitting(win)
+	return win and win.buf and vim.api.nvim_buf_is_valid(win.buf) and vim.b[win.buf].gitlab_issues_submitting
+end
+
+local function set_submitting(win, value)
+	if win and win.buf and vim.api.nvim_buf_is_valid(win.buf) then
+		vim.b[win.buf].gitlab_issues_submitting = value
+	end
+end
+
 function M.submit(repo, win, on_created, ctx, close)
+	if is_submitting(win) then
+		return
+	end
+
 	local title, description = frontmatter.parse(win:text())
 	if not title then
 		return
 	end
 
+	set_submitting(win, true)
 	vim.cmd.stopinsert()
 	vim.notify("Creating issue in " .. repo .. "...", vim.log.levels.INFO)
 	backend.create_issue(repo, title, description, function(created, err)
 		if err then
+			set_submitting(win, false)
 			vim.notify("gitlab-issues: " .. err, vim.log.levels.ERROR)
 			return
 		end
