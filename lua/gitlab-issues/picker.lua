@@ -49,18 +49,39 @@ function M.issues(opts)
 		})
 	end
 
-	local function apply_filter(picker)
+	local function item_matches(left, right)
+		return left and right and left.iid == right.iid and left.repo == right.repo
+	end
+
+	local function find_item_index(items, target)
+		for idx, item in ipairs(items) do
+			if item_matches(item, target) then
+				return idx
+			end
+		end
+	end
+
+	local function apply_filter(picker, opts)
+		opts = opts or {}
 		local items = compute_items()
 		picker.opts.items = items
 		picker.title = title_for()
+
+		local target_idx = find_item_index(items, opts.item) or opts.index
+		if target_idx and #items > 0 and picker.list then
+			target_idx = math.min(target_idx, #items)
+			picker.list:set_target(target_idx, picker.list.top, { force = true })
+		end
+
 		picker:find({ refresh = true })
 		preview.prefetch(items, 25)
 	end
 
 	local function refresh_item(picker, item, raw_issue)
+		local old_idx = picker.list and picker.list.cursor or nil
 		local new_item = issue.make_item(raw_issue)
 		issue.replace(state.all_items, new_item)
-		apply_filter(picker)
+		apply_filter(picker, { item = new_item, index = old_idx })
 	end
 
 	local function refetch_items(picker)
