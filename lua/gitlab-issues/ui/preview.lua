@@ -162,10 +162,6 @@ local function body_lines(description)
 		table.remove(body, 1)
 	end
 
-	if #body == 0 then
-		body = { "_No description._" }
-	end
-
 	return vim.tbl_map(function(line)
 		return { { line } }
 	end, body)

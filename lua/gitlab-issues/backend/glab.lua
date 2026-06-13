@@ -144,10 +144,15 @@ end
 
 function M.fetch_issue(item, callback)
 	local encoded_repo = encode_path(item.repo)
-	local api_path = "projects/" .. encoded_repo .. "/issues/" .. tostring(item.iid)
+	local api_path = "projects/"
+		.. encoded_repo
+		.. "/issues?iids[]="
+		.. tostring(item.iid)
+		.. "&with_labels_details=true&state=all"
 
 	run({ "api", api_path }, function(out)
-		local raw_issue = decode(out)
+		local raw_issues = decode(out)
+		local raw_issue = type(raw_issues) == "table" and raw_issues[1] or nil
 		if type(raw_issue) ~= "table" then
 			callback(nil, out.stderr or "failed to fetch issue")
 			return
