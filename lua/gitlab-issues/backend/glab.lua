@@ -287,16 +287,18 @@ function M.create_issue(repo, title, description, callback)
 end
 
 function M.update_issue(item, title, description, callback)
+	local encoded_repo = encode_path(item.repo)
+	local api_path = "projects/" .. encoded_repo .. "/issues/" .. tostring(item.iid)
+
 	run({
-		"issue",
-		"update",
-		tostring(item.iid),
-		"-R",
-		item.repo,
-		"--title",
-		title,
-		"--description",
-		description or "",
+		"api",
+		"--method",
+		"PUT",
+		api_path,
+		"--raw-field",
+		"title=" .. title,
+		"--raw-field",
+		"description=" .. (description or ""),
 	}, function(out)
 		if out.code ~= 0 then
 			callback(nil, out.stderr or "update failed")
