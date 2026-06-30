@@ -87,7 +87,7 @@ function M.list_repos(group, callback)
 	local accumulated = {}
 
 	local function fetch_page(page)
-		local url = "groups/" .. group .. "/projects?include_subgroups=true&per_page=100&page=" .. page
+		local url = "groups/" .. encode_path(group) .. "/projects?include_subgroups=true&per_page=100&page=" .. page
 		run({ "api", url }, function(out)
 			local projects = decode(out)
 			if type(projects) ~= "table" then
