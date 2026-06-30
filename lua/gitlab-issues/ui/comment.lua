@@ -1,20 +1,27 @@
 local backend = require("gitlab-issues.backend.glab")
 local preview = require("gitlab-issues.ui.preview")
 local scratch = require("gitlab-issues.ui.scratch")
+local submit = require("gitlab-issues.ui.submit")
 
 local M = {}
 
 function M.submit(item, win, ctx, close)
+	if submit.is_submitting(win) then
+		return
+	end
+
 	local content = vim.trim(win:text())
 	if content == "" then
 		vim.notify("gitlab-issues: comment is empty", vim.log.levels.WARN)
 		return
 	end
 
+	submit.set_submitting(win, true)
 	vim.cmd.stopinsert()
 	vim.notify("Posting comment on #" .. item.iid .. "...", vim.log.levels.INFO)
 	backend.add_comment(item, content, function(_, err)
 		if err then
+			submit.set_submitting(win, false)
 			vim.notify("gitlab-issues: " .. err, vim.log.levels.ERROR)
 			return
 		end
