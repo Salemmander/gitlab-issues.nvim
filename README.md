@@ -59,9 +59,16 @@ For self-hosted GitLab:
   dependencies = { "folke/snacks.nvim" },
   opts = {
     group = "my-group",
-    gitlab_url = "https://gitlab.example.com",
+    gitlab_host = "gitlab.example.com",
   },
 }
+```
+
+Authenticate `glab` for that host before using the plugin:
+
+```sh
+glab auth login --hostname gitlab.example.com
+glab auth status --hostname gitlab.example.com
 ```
 
 ## Usage
@@ -94,7 +101,7 @@ Defaults:
 ```lua
 {
   group = nil,
-  gitlab_url = "https://gitlab.com",
+  gitlab_host = "gitlab.com",
   glab_cmd = "glab",
   keymaps = {
     issues = "<leader>GI",
@@ -180,5 +187,6 @@ require("gitlab-issues").create_issue()
 ## Notes
 
 - This plugin shells out to `glab`; it does not manage GitLab tokens directly.
-- Current repo detection uses the local `origin` remote and `gitlab_url`.
+- `gitlab_host` should be a hostname such as `gitlab.com` or `gitlab.example.com`; `https://` prefixes are accepted and normalized.
+- Current repo detection uses the local `origin` remote and `gitlab_host`.
 - This project is not affiliated with GitLab.

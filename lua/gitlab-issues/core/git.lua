@@ -6,8 +6,7 @@ function M.detect_repo()
 	local cfg = config.get()
 
 	local origin = vim.trim(vim.fn.system("git remote get-url origin 2>/dev/null"))
-	local gitlab_host = (cfg.gitlab_url or ""):gsub("^https?://", ""):gsub("/$", "")
-	local escaped_host = vim.pesc(gitlab_host)
+	local escaped_host = vim.pesc(cfg.gitlab_host)
 	local repo = origin:match(escaped_host .. "[:/](.+)%.git$")
 
 	if repo then
