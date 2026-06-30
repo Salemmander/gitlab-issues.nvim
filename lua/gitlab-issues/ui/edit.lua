@@ -1,19 +1,26 @@
 local backend = require("gitlab-issues.backend.glab")
 local frontmatter = require("gitlab-issues.ui.frontmatter")
 local scratch = require("gitlab-issues.ui.scratch")
+local submit = require("gitlab-issues.ui.submit")
 
 local M = {}
 
 function M.submit(item, win, ctx, close)
+	if submit.is_submitting(win) then
+		return
+	end
+
 	local title, description = frontmatter.parse(win:text())
 	if not title then
 		return
 	end
 
+	submit.set_submitting(win, true)
 	vim.cmd.stopinsert()
 	vim.notify("Updating issue #" .. item.iid .. "...", vim.log.levels.INFO)
 	backend.update_issue(item, title, description, function(raw_issue, err)
 		if err then
+			submit.set_submitting(win, false)
 			vim.notify("gitlab-issues: " .. err, vim.log.levels.ERROR)
 			return
 		end
