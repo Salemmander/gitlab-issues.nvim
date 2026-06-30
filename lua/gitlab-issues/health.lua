@@ -29,19 +29,19 @@ local function check_glab(cfg)
 
 	ok(("`%s` is executable"):format(cfg.glab_cmd))
 
-	local auth = run({ cfg.glab_cmd, "auth", "status" })
+	local auth = run({ cfg.glab_cmd, "auth", "status", "--hostname", cfg.gitlab_host })
 	if auth.code == 0 then
-		ok("glab authentication is configured")
+		ok(("glab authentication is configured for %s"):format(cfg.gitlab_host))
 	else
 		error("glab authentication failed", {
-			"Run `glab auth login`.",
+			("Run `glab auth login --hostname %s`."):format(cfg.gitlab_host),
 			vim.trim(auth.stderr ~= "" and auth.stderr or auth.stdout),
 		})
 	end
 end
 
 local function check_config(cfg)
-	info(("gitlab_url: %s"):format(cfg.gitlab_url))
+	info(("gitlab_host: %s"):format(cfg.gitlab_host))
 	info(("glab_cmd: %s"):format(cfg.glab_cmd))
 
 	if cfg.group then

@@ -9,7 +9,14 @@ local label_cache = {}
 
 local function run(args, callback)
 	local cfg = config.get()
-	vim.system(vim.list_extend({ cfg.glab_cmd }, args), { text = true }, function(out)
+	local command = vim.list_extend({ cfg.glab_cmd }, vim.deepcopy(args))
+
+	if args[1] == "api" and cfg.gitlab_host and cfg.gitlab_host ~= "" then
+		table.insert(command, 3, cfg.gitlab_host)
+		table.insert(command, 3, "--hostname")
+	end
+
+	vim.system(command, { text = true }, function(out)
 		vim.schedule(function()
 			callback(out)
 		end)
