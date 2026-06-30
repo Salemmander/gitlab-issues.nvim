@@ -132,7 +132,9 @@ function M.build(ctx)
 				return
 			end
 
-			ctx.refresh_item(picker, item, raw_issue)
+			if picker and not picker.closed then
+				ctx.refresh_item(picker, item, raw_issue)
+			end
 			vim.notify(action_label .. " #" .. item.iid .. ": " .. item.title, vim.log.levels.INFO)
 		end)
 	end
@@ -168,7 +170,9 @@ function M.build(ctx)
 					return
 				end
 
-				ctx.refresh_item(picker, item, raw_issue)
+				if picker and not picker.closed then
+					ctx.refresh_item(picker, item, raw_issue)
+				end
 				vim.notify(done_label .. " #" .. item.iid .. ": " .. item.title, vim.log.levels.INFO)
 			end)
 		end)
